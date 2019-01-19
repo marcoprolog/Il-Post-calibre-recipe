@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from calibre.web.feeds.news import BasicNewsRecipe
 from calibre.utils.magick import Image
 
-#----------- CUSTOMIZATION OPTIONS START -----------
+# ----------- CUSTOMIZATION OPTIONS START -----------
 
 # Comment (add # in front) to disable the sections you are not interested in
 # Commenta (aggiungi # davanti alla riga) per disabilitare le sezioni che non vuoi scaricare
@@ -21,7 +21,7 @@ sections = [
     ("Mondo", "https://www.ilpost.it/mondo/"),
     ("Politica", "https://www.ilpost.it/politica/"),
     ("Tecnologia", "https://www.ilpost.it/tecnologia/"),
-    ("Internet", "https://www.ilpost.it/internet/")
+    ("Internet", "https://www.ilpost.it/internet/"),
     ("Scienza", "https://www.ilpost.it/scienza/"),
     ("Cultura", "https://www.ilpost.it/cultura/"),
     ("Economia", "https://www.ilpost.it/economia/"),
@@ -33,27 +33,30 @@ sections = [
     ("Konrad", "https://www.ilpost.it/europa/"),
 ]
 
-# Change this to False if you want color images (e.g. if you're reading on a Kindle Fire)
+# Change this to True if you want grey images
 convert_to_grayscale = True
 
-#----------- CUSTOMIZATION OPTIONS OVER -----------
+# ----------- CUSTOMIZATION OPTIONS OVER -----------
 
 prefixes = {"Permalink to", "Commenta", "Link all'articolo"}
 
+
 class IlPost(BasicNewsRecipe):
-    __author__ = 'Marco Scirea, based on a recipe by frafra'
+    __author__ = 'Marco Scirea'
     __license__ = 'GPL v3'
     __copyright__ = '2019, Marco Scirea <marco.prolog at gmail.com>'
-    
+
     title = "Il Post"
     language = "it"
-    description = 'Puoi decidere quali sezioni scaricare modificando la ricetta. Di default le immagini sono convertite in scala di grigio per risparmiare spazio, la ricetta puo\' essere configurata per tenerle a colori'
+    description = ('Puoi decidere quali sezioni scaricare modificando la ricetta.'
+            ' Di default le immagini sono convertite in scala di grigio per risparmiare spazio,'
+            ' la ricetta puo\' essere configurata per tenerle a colori')
     tags = "news"
     cover_url = "https://www.ilpost.it/wp-content/themes/ilpost/images/ilpost.svg"
-    ignore_duplicate_articles = {"title","url"}
+    ignore_duplicate_articles = {"title", "url"}
     no_stylesheets = True
     keep_only_tags = [dict(id=["expanding", "singleBody"])]
-            
+
     def parse_page(self, name, url):
         self.log.debug(url)
         soup = self.index_to_soup(url)
@@ -73,30 +76,36 @@ class IlPost(BasicNewsRecipe):
                     "title": title,
                 })
         return (name, entries)
-    
+
     def populate_article_metadata(self, article, soup, first):
-        description = soup.find(attrs={"name":"description"})
-        article.summary = description["content"] if description else "No meta description given"
-        article.text_summary = description["content"] if description else "No meta description given"
+        description = soup.find(attrs={"name": "description"})
+        article.summary = description[
+            "content"] if description else "No meta description given"
+        article.text_summary = description[
+            "content"] if description else "No meta description given"
 
     def parse_index(self):
         feeds = []
-        #feeds.append(self.parse_page("Front Page", "https://www.ilpost.it/"))
         for section in sections:
             feeds.append(self.parse_page(section[0], section[1]))
         return feeds
-    
+
+
     # Image conversion to greyscale by Starson17
     # https://www.mobileread.com/forums/showpost.php?p=1814815&postcount=15
     def postprocess_html(self, soup, first):
         if convert_to_grayscale:
-            #process all the images
-            for tag in soup.findAll(lambda tag: tag.name.lower()=='img' and tag.has_key('src')):
+            # process all the images
+            for tag in soup.findAll('img', src=True):
                 iurl = tag['src']
                 img = Image()
                 img.open(iurl)
-                if img < 0:
-                    raise RuntimeError('Out of memory')
                 img.type = "GrayscaleType"
                 img.save(iurl)
+        return soup
+    
+    def preprocess_html(self, soup):
+        galleryItems = soup.findAll("figure", { "class" : "gallery-item"} )
+        if (galleryItems):
+            abort_article()
         return soup
